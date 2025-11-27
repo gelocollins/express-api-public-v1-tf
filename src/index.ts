@@ -1,52 +1,30 @@
 import express from 'express'
-import path from 'path'
-import { fileURLToPath } from 'url'
+import { createClient } from '@supabase/supabase-js'
 
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
-
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhzcGhqYXh0aWt2Zmh0c2hzeGx6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQyMzI5NDMsImV4cCI6MjA3OTgwODk0M30.KDw4OSGD6VO-4JcgZ_JrdcDgYfNie2sxvqxEiDYQwVg"
+const SUPABASE_URL = "https://xsphjaxtikvfhtshsxlz.supabase.co"
 const app = express()
+app.use(express.json({ limit: '10mb' }))
+const supabase = createClient(
+  SUPABASE_URL, SUPABASE_KEY
+  )
 
-// Home route - HTML
-app.get('/', (req, res) => {
-  res.type('html').send(`
-    <!doctype html>
-    <html>
-      <head>
-        <meta charset="utf-8"/>
-        <title>Express on Vercel</title>
-        <link rel="stylesheet" href="/style.css" />
-      </head>
-      <body>
-        <nav>
-          <a href="/">Home</a>
-          <a href="/about">About</a>
-          <a href="/api-data">API Data</a>
-          <a href="/healthz">Health</a>
-        </nav>
-        <h1>Welcome to Express on Vercel 🚀</h1>
-        <p>This is a minimal example without a database or forms.</p>
-        <img src="/logo.png" alt="Logo" width="120" />
-      </body>
-    </html>
-  `)
-})
-
-app.get('/about', function (req, res) {
-  res.sendFile(path.join(__dirname, '..', 'components', 'about.htm'))
-})
-
-// Example API endpoint - JSON
-app.get('/api-data', (req, res) => {
-  res.json({
-    message: 'Here is some sample API data',
-    items: ['apple', 'banana', 'cherry'],
-  })
-})
-
-// Health check
-app.get('/healthz', (req, res) => {
-  res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() })
+app.post('/reports', async (req, res) => {
+  try {
+    const { agentName, branch, date, filename, csv } = req.body
+    if (!agentName || !branch || !date || !filename || !csv) {
+      return res.status(400).json({ error: 'Missing required fields' })
+    }
+    const csvBuffer = Buffer.from(csv, 'base64')
+    const { error } = await supabase.from('reports').insert([
+      { agent_name: agentName, branch, date, filename, csv: csvBuffer }
+    ])
+    if (error) throw error
+    res.status(200).json({ status: 'ok' })
+  } catch (e: any) {
+    console.error('[/reports]', e)
+    res.status(500).json({ error: e.message })
+  }
 })
 
 export default app
